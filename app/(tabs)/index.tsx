@@ -1,15 +1,18 @@
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
+import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import Button from '@/components/Button';
-import ImageViewer from '@/components/ImageViewer';
+import * as MediaLibrary from 'expo-media-library';
+import { useNavigation } from '@react-navigation/native';
+import { DrawerActions } from '@react-navigation/native';
 
 export default function Index() {
   const [permission, requestPermission] = useCameraPermissions();
+  const [mediaLibraryPermission, requestMediaLibraryPermission] = MediaLibrary.usePermissions();
   const [image, setImage] = useState(null);
   const cameraRef = useRef(null);
+  const navigation = useNavigation();
 
   if (!permission) {
     return <View />;
@@ -27,18 +30,27 @@ export default function Index() {
   }
 
   const pickImageAsync = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          quality: 1,
-        });
+    // Request media library permission if not granted
+  if (!mediaLibraryPermission?.granted) {
+    const permissionResponse = await requestMediaLibraryPermission();
+    if (!permissionResponse.granted) {
+      alert("Permission to access media library is required to select images.");
+      return;
+    }
+  }
     
-        if (!result.canceled) {
-          setImage(result.uri);
-        } else {
-          alert('You did not select any image.');
-        }
-      };
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, 
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setImage(result.assets[0].uri);
+    } else {
+      alert('You did not select any image.');
+    }
+  };
 
   const takePhotoAsync = async () => {
     if (cameraRef.current) {
@@ -47,11 +59,34 @@ export default function Index() {
     }
   };
 
+  const savePhoto = async () => {
+    if (!mediaLibraryPermission?.granted) {
+      const permissionResponse = await requestMediaLibraryPermission();
+      if (!permissionResponse.granted) {
+        alert("Permission to access media library is required to save images.");
+        return;
+      }
+    }
+
+    try {
+      await MediaLibrary.createAssetAsync(image);
+      alert("Photo saved to gallery!");
+      setImage(null); // Reset image after saving
+    } catch (error) {
+      console.log("Error saving photo:", error);
+      alert("Failed to save photo.");
+    }
+  };
+
+  const discardPhoto = () => {
+    setImage(null); // Reset image to return to camera mode
+  };
+
   return (
     <View style={styles.container}>
       {/* Top Bar with Icons and Title */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => alert('Menu clicked!')}>
+        <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
           <Ionicons name="menu" size={32} color="white" />
         </TouchableOpacity>
         <Text style={styles.title}>NGO App</Text>
@@ -59,23 +94,37 @@ export default function Index() {
           <Ionicons name="person-circle" size={32} color="white" />
         </TouchableOpacity>
       </View>
-      
-      {/* Live Camera Feed */}
+
+      {/* Image Preview or Camera View */}
       <View style={styles.imageContainer}>
-        <CameraView style={styles.camera} type={'back'} ref={cameraRef} />
+        {!image ? (
+          <CameraView style={styles.camera} type={'back'} ref={cameraRef} />
+        ) : (
+          <View style={styles.previewContainer}>
+            <Image source={{ uri: image }} style={styles.image} />
+            <View style={styles.actionButtons}>
+              <TouchableOpacity onPress={savePhoto} style={styles.saveButton}>
+                <Ionicons name="checkmark-circle" size={50} color="green" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={discardPhoto} style={styles.discardButton}>
+                <Ionicons name="close-circle" size={50} color="red" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
-      
+
       {/* Footer Buttons */}
-      <View style={styles.footerContainer}>
-      {/* <Button theme="primary" label="Choose a photo" onPress={pickImageAsync} /> */}
-      {/* <Button theme="primary" label="Click photo" onPress={takePhotoAsync} /> */}
-        <TouchableOpacity style={styles.button} onPress={takePhotoAsync}>
-          <Text style={styles.buttonText}>Click Photo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={pickImageAsync}>
-          <Text style={styles.buttonText}>Choose a photo</Text>
-        </TouchableOpacity>
-      </View>
+      {!image && (
+        <View style={styles.footerContainer}>
+          <TouchableOpacity style={styles.button} onPress={takePhotoAsync}>
+            <Text style={styles.buttonText}>Click Photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={pickImageAsync}>
+            <Text style={styles.buttonText}>Choose a photo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -110,11 +159,29 @@ const styles = StyleSheet.create({
   },
   camera: {
     width: '100%',
-    height: '100%',
+    height: undefined,
+    aspectRatio: 3 / 4, 
+  },
+  previewContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   image: {
     width: 300,
-    height: 300,
+    height: 400,
+    borderRadius: 10,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    marginTop: 20,
+    justifyContent: 'space-between',
+    width: '60%',
+  },
+  saveButton: {
+    alignItems: 'center',
+  },
+  discardButton: {
+    alignItems: 'center',
   },
   footerContainer: {
     flex: 1 / 3,
@@ -138,3 +205,4 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
 });
+
