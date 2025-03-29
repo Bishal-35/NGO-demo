@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "476874569402",
+    "project_id": "ngo-app-779f8",
+    "storage_bucket": "ngo-app-779f8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:476874569402:android:a3431c7e74d1ec31cb3483",
+        "android_client_info": {
+          "package_name": "com.bibekroy.ngodemo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAX_exY8xfQ_vZdLXUM5zXnO8Fggts5esY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
